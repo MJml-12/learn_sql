@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Latihan SQL 2 Minggu </title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2430; --muted:#6b7280; --line:#e6e8ec; --accent:#2563eb; --green:#16a34a; --orange:#ea580c; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN",Meiryo,sans-serif; background:var(--bg); color:var(--ink); font-size:14px; line-height:1.55; }
+  .wrap { max-width:960px; margin:0 auto; padding:24px 16px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin-bottom:20px; }
+  h2 { font-size:16px; margin:28px 0 10px; padding-top:14px; border-top:2px solid var(--line); }
+  .day { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:14px 0; }
+  .day h3 { margin:0 0 6px; font-size:15px; }
+  .day .topic { color:var(--accent); font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+  .q { margin:10px 0 4px; font-weight:600; }
+  .hint { color:var(--muted); font-size:12.5px; }
+  details { margin:6px 0 14px; }
+  summary { cursor:pointer; color:var(--accent); font-size:13px; font-weight:600; }
+  pre { background:#0f172a; color:#e2e8f0; padding:12px; border-radius:8px; overflow-x:auto; font-size:12.5px; margin:8px 0; }
+  code { font-family:Consolas,Menlo,monospace; }
+  .editor-box { position:sticky; bottom:0; background:var(--card); border:1px solid var(--line); border-radius:12px 12px 0 0; padding:12px; box-shadow:0 -4px 20px rgba(0,0,0,.08); }
+  textarea { width:100%; height:110px; font-family:Consolas,Menlo,monospace; font-size:13px; border:1px solid var(--line); border-radius:8px; padding:10px; resize:vertical; background:#fbfcfe; }
+  button.run { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:8px 18px; font-size:13px; font-weight:600; cursor:pointer; margin-top:6px; }
+  button.run:hover { filter:brightness(1.08); }
+  #status { font-size:12px; color:var(--muted); margin-left:10px; }
+  #result { overflow-x:auto; max-height:300px; overflow-y:auto; margin-top:10px; }
+  table.res { border-collapse:collapse; font-size:12.5px; width:100%; }
+  table.res th, table.res td { border:1px solid var(--line); padding:5px 8px; text-align:left; white-space:nowrap; }
+  table.res th { background:#eef2f7; position:sticky; top:0; }
+  .err { color:#dc2626; font-size:13px; white-space:pre-wrap; }
+  .schema { background:#eef6ff; border:1px solid #d5e6fb; border-radius:10px; padding:12px 14px; font-size:13px; }
+  .schema code { background:#fff; padding:1px 5px; border-radius:4px; border:1px solid var(--line); }
+  .tag { display:inline-block; background:#ecfdf5; color:var(--green); border-radius:999px; padding:2px 10px; font-size:11.5px; font-weight:700; margin-left:6px; }
+  .tag.hard { background:#fff7ed; color:var(--orange); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⚽ Latihan SQL 2 Minggu</h1>
+  <div class="sub" style="margin-bottom:2px">© 2026 Muhamad Jamal Alhafizt · MIT License</div>
+  <div class="sub"> Database liga fiktif langsung jalan di browser (SQLite) · Ketik query di kotak bawah, tekan <b>Jalankan</b> (atau Ctrl+Enter)</div>
+
+  <div class="schema">
+    <b>Skema database</b> (liga fiktif 8 klub, musim 2025):<br>
+    <code>teams</code>(team_id, name, city, stadium_capacity)<br>
+    <code>players</code>(player_id, team_id, name, position, birth_year, nationality) — posisi: GK/DF/MF/FW<br>
+    <code>matches</code>(match_id, match_date, home_team_id, away_team_id, home_goals, away_goals, attendance)<br>
+    <code>goals</code>(goal_id, match_id, player_id, minute, is_penalty)<br>
+    <span class="hint">Coba dulu: <code>SELECT * FROM teams;</code></span>
+  </div>
+
+  <h2>MINGGU 1 — Fondasi</h2>
+
+  <div class="day"><span class="topic">Hari 1 · SELECT, WHERE, ORDER BY</span>
+    <div class="q">1-1. Tampilkan semua pemain posisi FW, urutkan dari yang termuda.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT name, birth_year, nationality
+FROM players
+WHERE position = 'FW'
+ORDER BY birth_year DESC;</code></pre></details>
+    <div class="q">1-2. Pertandingan dengan penonton di atas 30.000, tampilkan tanggal dan attendance saja.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT match_date, attendance
+FROM matches
+WHERE attendance &gt; 30000
+ORDER BY attendance DESC;</code></pre></details>
+    <div class="q">1-3. Pemain non-Jepang (nationality bukan 'Japan'), 10 pertama berdasarkan nama.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT name, nationality
+FROM players
+WHERE nationality &lt;&gt; 'Japan'
+ORDER BY name
+LIMIT 10;</code></pre></details>
+  </div>
+
+  <div class="day"><span class="topic">Hari 2 · Agregasi: COUNT, SUM, AVG, GROUP BY, HAVING</span>
+    <div class="q">2-1. Berapa jumlah pemain per posisi?</div>
+    <details><summary>Solusi</summary><pre><code>SELECT position, COUNT(*) AS jumlah
+FROM players
+GROUP BY position;</code></pre></details>
+    <div class="q">2-2. Rata-rata penonton per pertandingan (bulatkan).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT ROUND(AVG(attendance)) AS rata2_penonton
+FROM matches;</code></pre></details>
+    <div class="q">2-3. Kewarganegaraan yang punya lebih dari 3 pemain di liga.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT nationality, COUNT(*) AS n
+FROM players
+GROUP BY nationality
+HAVING COUNT(*) &gt; 3
+ORDER BY n DESC;</code></pre></details>
+    <div class="q">2-4. Total gol per bulan (petunjuk: <code>strftime('%m', match_date)</code> lewat join ke matches — boleh tunda ke Hari 3 kalau belum bisa join).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT strftime('%Y-%m', m.match_date) AS bulan,
+       COUNT(g.goal_id) AS total_gol
+FROM goals g
+JOIN matches m ON m.match_id = g.match_id
+GROUP BY bulan
+ORDER BY bulan;</code></pre></details>
+  </div>
+
+  <div class="day"><span class="topic">Hari 3 · INNER JOIN dasar</span>
+    <div class="q">3-1. Daftar pemain beserta nama klubnya.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT p.name AS pemain, t.name AS klub, p.position
+FROM players p
+JOIN teams t ON t.team_id = p.team_id
+ORDER BY klub, pemain;</code></pre></details>
+    <div class="q">3-2. Top skor liga: 10 pemain dengan gol terbanyak.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT p.name, t.name AS klub, COUNT(*) AS gol
+FROM goals g
+JOIN players p ON p.player_id = g.player_id
+JOIN teams t  ON t.team_id  = p.team_id
+GROUP BY p.player_id
+ORDER BY gol DESC
+LIMIT 10;</code></pre></details>
+    <div class="q">3-3. Jumlah gol penalti per klub.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT t.name AS klub, COUNT(*) AS penalti
+FROM goals g
+JOIN players p ON p.player_id = g.player_id
+JOIN teams t  ON t.team_id  = p.team_id
+WHERE g.is_penalty = 1
+GROUP BY t.team_id
+ORDER BY penalti DESC;</code></pre></details>
+  </div>
+
+  <div class="day"><span class="topic">Hari 4 · JOIN lanjutan (alias ganda, LEFT JOIN)</span>
+    <div class="q">4-1. Daftar pertandingan dengan NAMA tim kandang dan tandang (join <code>teams</code> dua kali dengan alias berbeda).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT m.match_date,
+       th.name AS kandang, m.home_goals,
+       ta.name AS tandang, m.away_goals
+FROM matches m
+JOIN teams th ON th.team_id = m.home_team_id
+JOIN teams ta ON ta.team_id = m.away_team_id
+ORDER BY m.match_date;</code></pre></details>
+    <div class="q">4-2. Pemain yang BELUM pernah mencetak gol (LEFT JOIN + IS NULL).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT p.name, p.position, t.name AS klub
+FROM players p
+JOIN teams t ON t.team_id = p.team_id
+LEFT JOIN goals g ON g.player_id = p.player_id
+WHERE g.goal_id IS NULL
+ORDER BY klub;</code></pre></details>
+    <div class="q">4-3. Rata-rata penonton per klub saat main kandang.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT t.name AS klub,
+       ROUND(AVG(m.attendance)) AS rata2,
+       t.stadium_capacity
+FROM matches m
+JOIN teams t ON t.team_id = m.home_team_id
+GROUP BY t.team_id
+ORDER BY rata2 DESC;</code></pre></details>
+  </div>
+
+  <div class="day"><span class="topic">Hari 5 · Subquery</span>
+    <div class="q">5-1. Pemain yang lebih muda dari rata-rata umur liga.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT name, birth_year
+FROM players
+WHERE birth_year &gt; (SELECT AVG(birth_year) FROM players)
+ORDER BY birth_year DESC;</code></pre></details>
+    <div class="q">5-2. Pertandingan dengan total gol di atas rata-rata liga.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT match_id, match_date, home_goals + away_goals AS total
+FROM matches
+WHERE home_goals + away_goals &gt;
+      (SELECT AVG(home_goals + away_goals) FROM matches)
+ORDER BY total DESC;</code></pre></details>
+    <div class="q">5-3. Klub yang pemainnya mencetak gol terbanyak di satu pertandingan tunggal (subquery bertingkat — soal bonus <span class="tag hard">SULIT</span>).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT t.name, sub.match_id, sub.n_gol
+FROM (
+  SELECT p.team_id, g.match_id, COUNT(*) AS n_gol
+  FROM goals g JOIN players p ON p.player_id = g.player_id
+  GROUP BY p.team_id, g.match_id
+) sub
+JOIN teams t ON t.team_id = sub.team_id
+ORDER BY sub.n_gol DESC
+LIMIT 5;</code></pre></details>
+  </div>
+
+  <div class="day"><span class="topic">Hari 6 · CTE (WITH)</span>
+    <div class="q">6-1. Tulis ulang soal 3-2 (top skor) memakai CTE.</div>
+    <details><summary>Solusi</summary><pre><code>WITH skor AS (
+  SELECT player_id, COUNT(*) AS gol
+  FROM goals
+  GROUP BY player_id
+)
+SELECT p.name, t.name AS klub, s.gol
+FROM skor s
+JOIN players p ON p.player_id = s.player_id
+JOIN teams t  ON t.team_id  = p.team_id
+ORDER BY s.gol DESC
+LIMIT 10;</code></pre></details>
+    <div class="q">6-2. Buat klasemen sederhana: poin per klub (menang=3, seri=1) memakai CTE gabungan hasil kandang + tandang <span class="tag hard">SULIT</span>. Ini soal paling penting minggu 1 — pola klasemen sering keluar di tes.</div>
+    <details><summary>Solusi</summary><pre><code>WITH hasil AS (
+  SELECT home_team_id AS team_id,
+         CASE WHEN home_goals &gt; away_goals THEN 3
+              WHEN home_goals = away_goals THEN 1 ELSE 0 END AS poin,
+         home_goals AS gf, away_goals AS ga
+  FROM matches
+  UNION ALL
+  SELECT away_team_id,
+         CASE WHEN away_goals &gt; home_goals THEN 3
+              WHEN away_goals = home_goals THEN 1 ELSE 0 END,
+         away_goals, home_goals
+  FROM matches
+)
+SELECT t.name AS klub,
+       COUNT(*)         AS main,
+       SUM(h.poin)      AS poin,
+       SUM(h.gf)        AS gol,
+       SUM(h.gf - h.ga) AS selisih
+FROM hasil h
+JOIN teams t ON t.team_id = h.team_id
+GROUP BY h.team_id
+ORDER BY poin DESC, selisih DESC;</code></pre></details>
+  </div>
+
+  <div class="day"><span class="topic">Hari 7 · Review + mini-tes (kerjakan tanpa lihat solusi, target 30 menit)</span>
+    <div class="q">7-1. Klub dengan persentase gol dari FW tertinggi.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT t.name,
+       ROUND(100.0 * SUM(CASE WHEN p.position='FW' THEN 1 ELSE 0 END)
+             / COUNT(*), 1) AS pct_gol_fw
+FROM goals g
+JOIN players p ON p.player_id = g.player_id
+JOIN teams t  ON t.team_id  = p.team_id
+GROUP BY t.team_id
+ORDER BY pct_gol_fw DESC;</code></pre></details>
+    <div class="q">7-2. Bulan dengan rata-rata penonton tertinggi.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT strftime('%Y-%m', match_date) AS bulan,
+       ROUND(AVG(attendance)) AS rata2
+FROM matches
+GROUP BY bulan
+ORDER BY rata2 DESC
+LIMIT 1;</code></pre></details>
+    <div class="q">7-3. Pencetak gol termuda di liga (join + subquery/order).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT DISTINCT p.name, p.birth_year
+FROM goals g
+JOIN players p ON p.player_id = g.player_id
+ORDER BY p.birth_year DESC
+LIMIT 1;</code></pre></details>
+  </div>
+
+  <h2>MINGGU 2 — Window function &amp; pola tes</h2>
+
+  <div class="day"><span class="topic">Hari 8 · ROW_NUMBER, RANK, DENSE_RANK</span>
+    <div class="q">8-1. Ranking top skor dengan RANK() — perhatikan bedanya dengan ROW_NUMBER saat gol sama.</div>
+    <details><summary>Solusi</summary><pre><code>WITH skor AS (
+  SELECT player_id, COUNT(*) AS gol FROM goals GROUP BY player_id
+)
+SELECT RANK()       OVER (ORDER BY gol DESC) AS rk,
+       ROW_NUMBER() OVER (ORDER BY gol DESC) AS rn,
+       p.name, s.gol
+FROM skor s JOIN players p ON p.player_id = s.player_id
+LIMIT 15;</code></pre></details>
+    <div class="q">8-2. Ranking pemain termuda DI DALAM tiap klub (PARTITION BY).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT t.name AS klub, p.name, p.birth_year,
+       ROW_NUMBER() OVER (PARTITION BY p.team_id
+                          ORDER BY p.birth_year DESC) AS rk_muda
+FROM players p JOIN teams t ON t.team_id = p.team_id
+ORDER BY klub, rk_muda;</code></pre></details>
+  </div>
+
+  <div class="day"><span class="topic">Hari 9 · LAG / LEAD</span>
+    <div class="q">9-1. Untuk tiap pertandingan kandang satu klub (pilih team_id=1), tampilkan attendance dan selisihnya dengan pertandingan kandang sebelumnya.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT match_date, attendance,
+       attendance - LAG(attendance) OVER (ORDER BY match_date) AS selisih
+FROM matches
+WHERE home_team_id = 1
+ORDER BY match_date;</code></pre></details>
+    <div class="q">9-2. Jeda hari antar-gol untuk pencetak gol terbanyak (LAG pada tanggal — gunakan <code>julianday</code>) <span class="tag hard">SULIT</span>.</div>
+    <details><summary>Solusi</summary><pre><code>WITH top1 AS (
+  SELECT player_id FROM goals GROUP BY player_id
+  ORDER BY COUNT(*) DESC LIMIT 1
+)
+SELECT m.match_date, g.minute,
+       CAST(julianday(m.match_date) -
+            julianday(LAG(m.match_date) OVER (ORDER BY m.match_date, g.minute))
+            AS INT) AS jeda_hari
+FROM goals g
+JOIN matches m ON m.match_id = g.match_id
+WHERE g.player_id = (SELECT player_id FROM top1)
+ORDER BY m.match_date;</code></pre></details>
+  </div>
+
+  <div class="day"><span class="topic">Hari 10 · Running total &amp; moving average</span>
+    <div class="q">10-1. Akumulasi gol liga dari waktu ke waktu (running total per tanggal).</div>
+    <details><summary>Solusi</summary><pre><code>WITH per_hari AS (
+  SELECT m.match_date, COUNT(g.goal_id) AS gol
+  FROM matches m LEFT JOIN goals g ON g.match_id = m.match_id
+  GROUP BY m.match_date
+)
+SELECT match_date, gol,
+       SUM(gol) OVER (ORDER BY match_date) AS kumulatif
+FROM per_hari;</code></pre></details>
+    <div class="q">10-2. Moving average attendance 3 pertandingan terakhir (frame ROWS BETWEEN).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT match_date, attendance,
+       ROUND(AVG(attendance) OVER (
+         ORDER BY match_date
+         ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)) AS ma3
+FROM matches
+ORDER BY match_date;</code></pre></details>
+  </div>
+
+  <div class="day"><span class="topic">Hari 11 · CASE, COALESCE, fungsi tanggal</span>
+    <div class="q">11-1. Kategorikan pertandingan: 'sepi' (&lt;15rb), 'normal' (15–30rb), 'penuh' (&gt;30rb) lalu hitung jumlahnya.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT CASE
+         WHEN attendance &lt; 15000 THEN 'sepi'
+         WHEN attendance &lt;= 30000 THEN 'normal'
+         ELSE 'penuh'
+       END AS kategori,
+       COUNT(*) AS n
+FROM matches
+GROUP BY kategori;</code></pre></details>
+    <div class="q">11-2. Daftar SEMUA pemain dengan jumlah golnya; yang belum punya gol tampil 0 (LEFT JOIN + COALESCE).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT p.name,
+       COALESCE(COUNT(g.goal_id), 0) AS gol
+FROM players p
+LEFT JOIN goals g ON g.player_id = p.player_id
+GROUP BY p.player_id
+ORDER BY gol DESC;</code></pre></details>
+    <div class="q">11-3. Gol per babak: babak 1 (menit ≤ 45) vs babak 2.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT CASE WHEN minute &lt;= 45 THEN 'Babak 1' ELSE 'Babak 2' END AS babak,
+       COUNT(*) AS gol
+FROM goals
+GROUP BY babak;</code></pre></details>
+  </div>
+
+  <div class="day"><span class="topic">Hari 12 · Top-N per grup (pola favorit tes!)</span>
+    <div class="q">12-1. Top skor DI TIAP klub (1 pemain per klub).</div>
+    <details><summary>Solusi</summary><pre><code>WITH skor AS (
+  SELECT p.team_id, p.name, COUNT(*) AS gol,
+         ROW_NUMBER() OVER (PARTITION BY p.team_id
+                            ORDER BY COUNT(*) DESC) AS rk
+  FROM goals g JOIN players p ON p.player_id = g.player_id
+  GROUP BY p.player_id
+)
+SELECT t.name AS klub, s.name AS top_skor, s.gol
+FROM skor s JOIN teams t ON t.team_id = s.team_id
+WHERE s.rk = 1
+ORDER BY s.gol DESC;</code></pre></details>
+    <div class="q">12-2. Dua pertandingan dengan penonton terbanyak untuk TIAP klub kandang.</div>
+    <details><summary>Solusi</summary><pre><code>WITH ranked AS (
+  SELECT m.*, ROW_NUMBER() OVER (PARTITION BY home_team_id
+                                 ORDER BY attendance DESC) AS rk
+  FROM matches m
+)
+SELECT t.name AS klub, r.match_date, r.attendance
+FROM ranked r JOIN teams t ON t.team_id = r.home_team_id
+WHERE r.rk &lt;= 2
+ORDER BY klub, rk;</code></pre></details>
+  </div>
+
+  <div class="day"><span class="topic">Hari 13 · Query gaya KPI (persis kerjaan data analyst)</span>
+    <div class="q">13-1. "Okupansi stadion": rata-rata attendance ÷ kapasitas per klub, dalam persen. KPI mana yang perlu perhatian (&lt;60%)?</div>
+    <details><summary>Solusi</summary><pre><code>SELECT t.name AS klub,
+       ROUND(100.0 * AVG(m.attendance) / t.stadium_capacity, 1) AS okupansi_pct
+FROM matches m
+JOIN teams t ON t.team_id = m.home_team_id
+GROUP BY t.team_id
+ORDER BY okupansi_pct;</code></pre></details>
+    <div class="q">13-2. Tren bulanan: total gol dan rata-rata penonton per bulan dalam SATU tabel.</div>
+    <details><summary>Solusi</summary><pre><code>WITH gol_bln AS (
+  SELECT strftime('%Y-%m', m.match_date) AS bulan, COUNT(*) AS gol
+  FROM goals g JOIN matches m ON m.match_id = g.match_id
+  GROUP BY bulan
+)
+SELECT strftime('%Y-%m', m.match_date) AS bulan,
+       ROUND(AVG(m.attendance)) AS rata2_penonton,
+       gb.gol
+FROM matches m
+JOIN gol_bln gb ON gb.bulan = strftime('%Y-%m', m.match_date)
+GROUP BY bulan
+ORDER BY bulan;</code></pre></details>
+    <div class="q">13-3. Kontribusi: berapa % gol klub yang disumbang top skornya? (gabungkan pola 12-1 dengan total gol klub) <span class="tag hard">SULIT</span></div>
+    <details><summary>Solusi</summary><pre><code>WITH gol_pemain AS (
+  SELECT p.team_id, p.name, COUNT(*) AS gol
+  FROM goals g JOIN players p ON p.player_id = g.player_id
+  GROUP BY p.player_id
+),
+klub AS (
+  SELECT team_id, SUM(gol) AS total,
+         MAX(gol) AS gol_top
+  FROM gol_pemain GROUP BY team_id
+)
+SELECT t.name, k.total, k.gol_top,
+       ROUND(100.0 * k.gol_top / k.total, 1) AS pct_top_skor
+FROM klub k JOIN teams t ON t.team_id = k.team_id
+ORDER BY pct_top_skor DESC;</code></pre></details>
+  </div>
+
+  <div class="day"><span class="topic">Hari 14 · Simulasi tes (60 menit, tanpa solusi dulu!)</span>
+    <div class="q">14-1. Buat klasemen akhir lengkap: main, menang, seri, kalah, gol, kemasukan, selisih, poin — urut peringkat.</div>
+    <details><summary>Solusi</summary><pre><code>WITH hasil AS (
+  SELECT home_team_id AS team_id, home_goals AS gf, away_goals AS ga FROM matches
+  UNION ALL
+  SELECT away_team_id, away_goals, home_goals FROM matches
+)
+SELECT t.name AS klub,
+       COUNT(*) AS main,
+       SUM(gf &gt; ga) AS M, SUM(gf = ga) AS S, SUM(gf &lt; ga) AS K,
+       SUM(gf) AS gol, SUM(ga) AS kemasukan, SUM(gf - ga) AS selisih,
+       SUM(CASE WHEN gf &gt; ga THEN 3 WHEN gf = ga THEN 1 ELSE 0 END) AS poin
+FROM hasil h JOIN teams t ON t.team_id = h.team_id
+GROUP BY h.team_id
+ORDER BY poin DESC, selisih DESC, gol DESC;</code></pre></details>
+    <div class="q">14-2. Pemain "super-sub": cetak gol di menit ≥ 75 paling banyak.</div>
+    <details><summary>Solusi</summary><pre><code>SELECT p.name, COUNT(*) AS gol_akhir
+FROM goals g JOIN players p ON p.player_id = g.player_id
+WHERE g.minute &gt;= 75
+GROUP BY p.player_id
+ORDER BY gol_akhir DESC
+LIMIT 5;</code></pre></details>
+    <div class="q">14-3. Untuk tiap klub: rata-rata penonton kandang bulan ini vs bulan sebelumnya beserta % perubahan (gabungan CTE + window LAG) <span class="tag hard">SULIT</span>.</div>
+    <details><summary>Solusi</summary><pre><code>WITH bln AS (
+  SELECT home_team_id AS team_id,
+         strftime('%Y-%m', match_date) AS bulan,
+         AVG(attendance) AS rata2
+  FROM matches GROUP BY team_id, bulan
+)
+SELECT t.name, b.bulan, ROUND(b.rata2) AS rata2,
+       ROUND(100.0 * (b.rata2 - LAG(b.rata2) OVER
+         (PARTITION BY b.team_id ORDER BY b.bulan))
+         / LAG(b.rata2) OVER (PARTITION BY b.team_id ORDER BY b.bulan), 1)
+         AS pct_perubahan
+FROM bln b JOIN teams t ON t.team_id = b.team_id
+ORDER BY t.name, b.bulan;</code></pre></details>
+    <div class="hint" style="margin-top:8px">✅ Kalau 14-1 s/d 14-3 selesai ≤60 menit tanpa lihat solusi → kamu siap web entry.</div>
+  </div>
+
+</div>
+
+<div class="editor-box">
+  <textarea id="sql" placeholder="Tulis SQL di sini... contoh: SELECT * FROM teams;">SELECT * FROM teams;</textarea>
+  <button class="run" onclick="run()">▶ Jalankan</button><span id="status">memuat database...</span>
+  <div id="result"></div>
+</div>
+
+<script>
+"use strict";
+let db;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const rnd = mulberry32(20260709);
+const ri = (a,b) => a + Math.floor(rnd()*(b-a+1));
+const pick = arr => arr[Math.floor(rnd()*arr.length)];
+
+initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` }).then(SQL => {
+  db = new SQL.Database();
+  db.run(`
+    CREATE TABLE teams(team_id INTEGER PRIMARY KEY, name TEXT, city TEXT, stadium_capacity INTEGER);
+    CREATE TABLE players(player_id INTEGER PRIMARY KEY, team_id INTEGER, name TEXT, position TEXT, birth_year INTEGER, nationality TEXT);
+    CREATE TABLE matches(match_id INTEGER PRIMARY KEY, match_date TEXT, home_team_id INTEGER, away_team_id INTEGER, home_goals INTEGER, away_goals INTEGER, attendance INTEGER);
+    CREATE TABLE goals(goal_id INTEGER PRIMARY KEY, match_id INTEGER, player_id INTEGER, minute INTEGER, is_penalty INTEGER);
+  `);
+  const teams = [
+    ["Tokyo Arrows","Tokyo",48000],["Osaka Waves","Osaka",40000],
+    ["Yokohama Port","Yokohama",35000],["Nagoya Thunder","Nagoya",30000],
+    ["Sapporo Bears","Sapporo",27000],["Fukuoka Suns","Fukuoka",22000],
+    ["Sendai Pines","Sendai",19000],["Hiroshima Falcons","Hiroshima",25000]
+  ];
+  teams.forEach((t,i)=>db.run("INSERT INTO teams VALUES(?,?,?,?)",[i+1,t[0],t[1],t[2]]));
+
+  const first=["Kenta","Yuto","Sota","Riku","Haruto","Daiki","Shun","Kaito","Ren","Takumi","Kazuki","Hayato","Itsuki","Aoi","Minato","Ryusei","Keito","Yamato"];
+  const last=["Sato","Suzuki","Tanaka","Watanabe","Ito","Kobayashi","Kato","Yamada","Nakamura","Hayashi","Shimizu","Mori","Abe","Ogawa","Okada","Goto","Murata","Fujii"];
+  const foreign=[["Silva","Brazil"],["Santos","Brazil"],["Pereira","Brazil"],["Kim","South Korea"],["Lee","South Korea"],["Putra","Indonesia"],["Wijaya","Indonesia"],["Nguyen","Vietnam"],["Martinez","Spain"],["Costa","Portugal"]];
+  const posPlan=["GK","GK","DF","DF","DF","DF","MF","MF","MF","MF","FW","FW","FW"];
+  let pid=1;
+  for(let t=1;t<=8;t++){
+    posPlan.forEach(pos=>{
+      let name,nat;
+      if(rnd()<0.18){ const f=pick(foreign); name=pick(first)+" "+f[0]; nat=f[1]; }
+      else { name=pick(first)+" "+pick(last); nat="Japan"; }
+      db.run("INSERT INTO players VALUES(?,?,?,?,?,?)",[pid++,t,name,pos,ri(1994,2006),nat]);
+    });
+  }
+
+  // jadwal: round robin 2x (56 laga), tanggal Feb–Nov 2025
+  const pairs=[];
+  for(let h=1;h<=8;h++)for(let a=1;a<=8;a++)if(h!==a)pairs.push([h,a]);
+  let mid=1;
+  const t0=new Date("2025-02-15").getTime();
+  pairs.forEach(([h,a])=>{
+    const d=new Date(t0 + ri(0,270)*86400000).toISOString().slice(0,10);
+    const hg=ri(0,4), ag=ri(0,3);
+    const att=Math.min( Math.round(teams[h-1][2]*(0.45+rnd()*0.55)), teams[h-1][2]);
+    db.run("INSERT INTO matches VALUES(?,?,?,?,?,?,?)",[mid,d,h,a,hg,ag,att]);
+    // goals
+    const stmt=db.prepare("SELECT player_id,position FROM players WHERE team_id=?");
+    function scorers(team){ const rows=[]; stmt.bind([team]); while(stmt.step()){rows.push(stmt.getAsObject());} stmt.reset(); return rows; }
+    function addGoals(team,n){
+      const roster=scorers(team).filter(p=>p.position!=="GK");
+      for(let i=0;i<n;i++){
+        // FW lebih sering: bobot FW 3x, MF 2x, DF 1x
+        const w=roster.flatMap(p=>p.position==="FW"?[p,p,p]:p.position==="MF"?[p,p]:[p]);
+        const sc=pick(w);
+        db.run("INSERT INTO goals VALUES(NULL,?,?,?,?)",[mid,sc.player_id,ri(1,90),rnd()<0.1?1:0]);
+      }
+    }
+    addGoals(h,hg); addGoals(a,ag);
+    stmt.free();
+    mid++;
+  });
+  document.getElementById("status").textContent="database siap ✓ (8 klub, 104 pemain, 56 laga)";
+}).catch(e=>{ document.getElementById("status").textContent="gagal memuat sql.js — cek koneksi internet"; });
+
+function run(){
+  const q=document.getElementById("sql").value;
+  const out=document.getElementById("result");
+  if(!db){ out.innerHTML='<div class="err">Database belum siap.</div>'; return; }
+  try{
+    const res=db.exec(q);
+    if(!res.length){ out.innerHTML='<div class="hint">OK — tidak ada baris hasil.</div>'; return; }
+    const r=res[res.length-1];
+    let html='<table class="res"><thead><tr>'+r.columns.map(c=>`<th>${c}</th>`).join("")+"</tr></thead><tbody>";
+    r.values.slice(0,200).forEach(row=>{ html+="<tr>"+row.map(v=>`<td>${v===null?"<i>NULL</i>":v}</td>`).join("")+"</tr>"; });
+    html+="</tbody></table>";
+    if(r.values.length>200) html+=`<div class="hint">(ditampilkan 200 dari ${r.values.length} baris)</div>`;
+    out.innerHTML=html;
+  }catch(e){ out.innerHTML=`<div class="err">Error: ${e.message}</div>`; }
+}
+document.getElementById("sql").addEventListener("keydown",e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){ e.preventDefault(); run(); }
+});
+</script>
+</body>
+</html>
