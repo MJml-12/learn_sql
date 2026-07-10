@@ -23,7 +23,12 @@
   pre { background:#0f172a; color:#e2e8f0; padding:12px; border-radius:8px; overflow-x:auto; font-size:12.5px; margin:8px 0; }
   code { font-family:Consolas,Menlo,monospace; }
   .editor-box { position:sticky; bottom:0; background:var(--card); border:1px solid var(--line); border-radius:12px 12px 0 0; padding:12px; box-shadow:0 -4px 20px rgba(0,0,0,.08); }
-  textarea { width:100%; height:110px; font-family:Consolas,Menlo,monospace; font-size:13px; border:1px solid var(--line); border-radius:8px; padding:10px; resize:vertical; background:#fbfcfe; }
+  .editor-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .editor-head b { font-size:13px; }
+  button.toggle { background:#eef2f7; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:4px 12px; font-size:12px; font-weight:600; cursor:pointer; }
+  .editor-box.closed #editor-body { display:none; }
+  /* font-size 16px mencegah iOS auto-zoom saat fokus ke textarea */
+  textarea { width:100%; height:110px; font-family:Consolas,Menlo,monospace; font-size:16px; border:1px solid var(--line); border-radius:8px; padding:10px; resize:vertical; background:#fbfcfe; }
   button.run { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:8px 18px; font-size:13px; font-weight:600; cursor:pointer; margin-top:6px; }
   button.run:hover { filter:brightness(1.08); }
   #status { font-size:12px; color:var(--muted); margin-left:10px; }
@@ -36,6 +41,17 @@
   .schema code { background:#fff; padding:1px 5px; border-radius:4px; border:1px solid var(--line); }
   .tag { display:inline-block; background:#ecfdf5; color:var(--green); border-radius:999px; padding:2px 10px; font-size:11.5px; font-weight:700; margin-left:6px; }
   .tag.hard { background:#fff7ed; color:var(--orange); }
+  @media (max-width:600px) {
+    .wrap { padding:14px 10px 60px; }
+    h1 { font-size:19px; }
+    .day { padding:12px; border-radius:10px; }
+    pre { font-size:11.5px; padding:10px; }
+    textarea { height:88px; }
+    #result { max-height:35vh; }
+    button.run { width:100%; padding:11px; font-size:15px; margin-top:8px; }
+    #status { display:block; margin:6px 0 0; }
+    .editor-box { padding:10px; }
+  }
 </style>
 </head>
 <body>
@@ -72,6 +88,22 @@ FROM players
 WHERE nationality &lt;&gt; 'Japan'
 ORDER BY name
 LIMIT 10;</code></pre></details>
+    <div class="q">1-4. Pemain MF atau FW yang lahir tahun 2000 ke atas (kombinasi AND/OR — hati-hati pakai kurung).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT name, position, birth_year
+FROM players
+WHERE (position = 'MF' OR position = 'FW')
+  AND birth_year &gt;= 2000
+ORDER BY birth_year DESC;</code></pre></details>
+    <div class="q">1-5. Pertandingan bulan Mei 2025 saja (petunjuk: <code>LIKE '2025-05%'</code> atau BETWEEN).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT match_date, home_team_id, away_team_id, home_goals, away_goals
+FROM matches
+WHERE match_date LIKE '2025-05%'
+ORDER BY match_date;</code></pre></details>
+    <div class="q">1-6. Pemain dari Brazil, South Korea, atau Indonesia (pakai IN).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT name, position, nationality
+FROM players
+WHERE nationality IN ('Brazil', 'South Korea', 'Indonesia')
+ORDER BY nationality, name;</code></pre></details>
   </div>
 
   <div class="day"><span class="topic">Hari 2 · Agregasi: COUNT, SUM, AVG, GROUP BY, HAVING</span>
@@ -95,9 +127,49 @@ FROM goals g
 JOIN matches m ON m.match_id = g.match_id
 GROUP BY bulan
 ORDER BY bulan;</code></pre></details>
+    <div class="q">2-5. Total gol kandang dan total gol tandang seluruh liga (SUM dua kolom sekaligus).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT SUM(home_goals) AS gol_kandang,
+       SUM(away_goals) AS gol_tandang
+FROM matches;</code></pre></details>
+    <div class="q">2-6. Tahun lahir termuda dan tertua per posisi (MIN &amp; MAX dalam satu query).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT position,
+       MIN(birth_year) AS tertua,
+       MAX(birth_year) AS termuda
+FROM players
+GROUP BY position;</code></pre></details>
+    <div class="q">2-7. Klub kandang (home_team_id) yang rata-rata attendance-nya di atas 25.000 — WHERE vs HAVING: kenapa di sini harus HAVING?</div>
+    <details><summary>Solusi</summary><pre><code>-- HAVING dipakai karena filternya pada HASIL agregasi (AVG),
+-- bukan pada baris mentah. WHERE dijalankan SEBELUM GROUP BY.
+SELECT home_team_id, ROUND(AVG(attendance)) AS rata2
+FROM matches
+GROUP BY home_team_id
+HAVING AVG(attendance) &gt; 25000
+ORDER BY rata2 DESC;</code></pre></details>
   </div>
 
   <div class="day"><span class="topic">Hari 3 · INNER JOIN dasar</span>
+    <div class="schema" style="margin:10px 0">
+      <b>🧠 Cara mikir JOIN (baca dulu sebelum ngerjain):</b><br>
+      JOIN = "tempelkan baris tabel B ke tiap baris tabel A yang kuncinya cocok".<br>
+      Contoh: <code>players</code> punya kolom <code>team_id</code> (cuma angka, misal 3). Nama klubnya ada di tabel <code>teams</code>.
+      Supaya angka 3 itu berubah jadi "Yokohama Port", kita tempelkan:<br>
+      <code>FROM players p JOIN teams t ON t.team_id = p.team_id</code><br>
+      Rumus praktis: <b>ON selalu berisi "kolom kunci tabel A = kolom kunci tabel B"</b>. Kalau bingung mulai dari mana:
+      (1) tulis dulu FROM tabel utama, (2) tanya "kolom apa yang kurang?", (3) JOIN tabel yang punya kolom itu lewat kunci yang sama.
+      Alias (<code>p</code>, <code>t</code>) cuma nama pendek biar ga ngetik panjang.
+    </div>
+    <div class="q">3-0a. Pemanasan: jalankan <code>SELECT * FROM players LIMIT 5;</code> lalu <code>SELECT * FROM teams;</code> — perhatikan kolom <code>team_id</code> muncul di dua-duanya. Itulah "kunci" yang menyambungkan.</div>
+    <details><summary>Solusi</summary><pre><code>-- Tanpa JOIN, kamu cuma lihat angka team_id:
+SELECT name, team_id FROM players LIMIT 5;
+-- Dengan JOIN, angka itu jadi nama klub:
+SELECT p.name, p.team_id, t.name AS klub
+FROM players p
+JOIN teams t ON t.team_id = p.team_id
+LIMIT 5;</code></pre></details>
+    <div class="q">3-0b. JOIN paling sederhana: tampilkan nama pemain + kota klubnya (cuma 2 kolom).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT p.name, t.city
+FROM players p
+JOIN teams t ON t.team_id = p.team_id;</code></pre></details>
     <div class="q">3-1. Daftar pemain beserta nama klubnya.</div>
     <details><summary>Solusi</summary><pre><code>SELECT p.name AS pemain, t.name AS klub, p.position
 FROM players p
@@ -119,6 +191,47 @@ JOIN teams t  ON t.team_id  = p.team_id
 WHERE g.is_penalty = 1
 GROUP BY t.team_id
 ORDER BY penalti DESC;</code></pre></details>
+    <div class="q">3-4. Semua gol beserta nama pencetaknya dan menitnya, urut dari menit paling awal (JOIN 2 tabel: goals → players).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT p.name, g.minute, g.is_penalty
+FROM goals g
+JOIN players p ON p.player_id = g.player_id
+ORDER BY g.minute
+LIMIT 20;</code></pre></details>
+    <div class="q">3-5. Gol beserta TANGGAL pertandingannya (JOIN goals → matches; perhatikan kuncinya sekarang <code>match_id</code>, bukan <code>player_id</code>).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT m.match_date, g.minute, g.player_id
+FROM goals g
+JOIN matches m ON m.match_id = g.match_id
+ORDER BY m.match_date
+LIMIT 20;</code></pre></details>
+    <div class="q">3-6. Gabungkan 3-4 dan 3-5: nama pencetak gol + tanggal pertandingan + menit (JOIN 3 tabel sekaligus — goals di tengah, nyambung ke players DAN matches).</div>
+    <details><summary>Solusi</summary><pre><code>-- goals punya player_id DAN match_id, jadi dia "jembatan" ke dua tabel:
+SELECT m.match_date, p.name, g.minute
+FROM goals g
+JOIN players p ON p.player_id = g.player_id
+JOIN matches m ON m.match_id  = g.match_id
+ORDER BY m.match_date, g.minute
+LIMIT 30;</code></pre></details>
+    <div class="q">3-7. Jumlah gol per klub (JOIN + GROUP BY — pola paling sering keluar di tes).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT t.name AS klub, COUNT(*) AS gol
+FROM goals g
+JOIN players p ON p.player_id = g.player_id
+JOIN teams t  ON t.team_id  = p.team_id
+GROUP BY t.team_id
+ORDER BY gol DESC;</code></pre></details>
+    <div class="q">3-8. Pemain FW dari klub yang kapasitas stadionnya di atas 30.000 (JOIN + WHERE dua kondisi dari dua tabel berbeda).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT p.name, t.name AS klub, t.stadium_capacity
+FROM players p
+JOIN teams t ON t.team_id = p.team_id
+WHERE p.position = 'FW'
+  AND t.stadium_capacity &gt; 30000
+ORDER BY t.stadium_capacity DESC;</code></pre></details>
+    <div class="q">3-9. Rata-rata menit terjadinya gol per posisi pencetak (apakah FW mencetak gol lebih awal dari MF?).</div>
+    <details><summary>Solusi</summary><pre><code>SELECT p.position, COUNT(*) AS gol,
+       ROUND(AVG(g.minute), 1) AS rata2_menit
+FROM goals g
+JOIN players p ON p.player_id = g.player_id
+GROUP BY p.position
+ORDER BY gol DESC;</code></pre></details>
   </div>
 
   <div class="day"><span class="topic">Hari 4 · JOIN lanjutan (alias ganda, LEFT JOIN)</span>
@@ -423,10 +536,16 @@ ORDER BY t.name, b.bulan;</code></pre></details>
 
 </div>
 
-<div class="editor-box">
-  <textarea id="sql" placeholder="Tulis SQL di sini... contoh: SELECT * FROM teams;">SELECT * FROM teams;</textarea>
-  <button class="run" onclick="run()">▶ Jalankan</button><span id="status">memuat database...</span>
-  <div id="result"></div>
+<div class="editor-box" id="editor-box">
+  <div class="editor-head">
+    <b>💻 SQL Editor</b>
+    <button class="toggle" onclick="toggleEditor()" id="toggle-btn">▼ Tutup</button>
+  </div>
+  <div id="editor-body">
+    <textarea id="sql" placeholder="Tulis SQL di sini... contoh: SELECT * FROM teams;">SELECT * FROM teams;</textarea>
+    <button class="run" onclick="run()">▶ Jalankan</button><span id="status">memuat database...</span>
+    <div id="result"></div>
+  </div>
 </div>
 
 <script>
@@ -513,6 +632,26 @@ function run(){
 }
 document.getElementById("sql").addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){ e.preventDefault(); run(); }
+});
+function toggleEditor(){
+  const box=document.getElementById("editor-box");
+  const btn=document.getElementById("toggle-btn");
+  box.classList.toggle("closed");
+  btn.textContent=box.classList.contains("closed")?"▲ Buka":"▼ Tutup";
+}
+// Tap kode solusi → langsung masuk ke editor (praktis di HP)
+document.querySelectorAll("details pre").forEach(pre=>{
+  const btn=document.createElement("button");
+  btn.textContent="📋 Salin ke editor";
+  btn.className="toggle";
+  btn.style.margin="0 0 8px";
+  btn.onclick=()=>{
+    document.getElementById("sql").value=pre.textContent.trim();
+    document.getElementById("editor-box").classList.remove("closed");
+    document.getElementById("toggle-btn").textContent="▼ Tutup";
+    document.getElementById("sql").scrollIntoView({behavior:"smooth",block:"center"});
+  };
+  pre.parentNode.insertBefore(btn,pre.nextSibling);
 });
 </script>
 </body>
